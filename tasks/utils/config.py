@@ -32,6 +32,7 @@ except ImportError:
 ###################################################################################################
 
 
+
 def load_cfg(env, root):
     """
     custom configuration system
@@ -77,18 +78,30 @@ def load_cfg(env, root):
     env.roledefs = roledefs
     env.machines = machinedefs
 
+    def from_section(cfg, section):
+        d = {}
+        for option in cfg.options(section):
+            option = str(option)
+            value = str(cfg.get(section, option))
+
+            ## check if this is a boolean
+            if value.lower() in ['true', 'false']:
+                d[option] = True if value.lower() == 'true' else False
+            else:
+                try:                            ## try to detect if it is an integer
+                    d[option] = int(value)
+                except ValueError:
+                    d[option] = value
+
+        return d
+
     # ... and the environment sections
     for section in [x for x in cfg.sections() if x.lower().startswith('env|')]:
         env_name = str(section.replace('env|', '').strip())
         if env_name == 'global':
-            d = {}
-            for option in cfg.options(section):
-                d[str(option)] = str(cfg.get(section, option))
-            env.update(_AttributeDict(d))
+            env.update(_AttributeDict(from_section(cfg, section)))
         elif env_name == 'auth':
-            d = {}
-            for option in cfg.options(section):
-                d[str(option)] = str(cfg.get(section, option))
+            d = from_section(cfg, section)
 
             ## do some specific treatment for some special keys...
             try:
@@ -105,13 +118,11 @@ def load_cfg(env, root):
             try:
                 env.password = d['password']
             except KeyError:
-                print 'WARNING: no default passworrd specified in config file...'
+                print 'WARNING: no default password specified in config file...'
 
         else:
             if not env_name in env:
-                d = {}
-                for option in cfg.options(section):
-                    d[str(option)] = str(cfg.get(section, option))
+                d = from_section(cfg, section)
                 env[env_name] = _AttributeDict(d)
 
     ## and some defaults...
