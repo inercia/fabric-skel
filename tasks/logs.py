@@ -24,7 +24,7 @@ def tail():
     """
     Prints the tail of PREFIX/logs/XXXXX.log
     """
-    f = os.path.join(env.admin.prefix, 'logs', 'XXXXX.log')
+    f = os.path.join(env.installation.prefix, 'logs', 'XXXXX.log')
     print(green('%s at %s' % (f, env.host_string)))
     with settings(warn_only = True):
         run('[ -f {f} ] && tail {f} || echo "file not found"'.format(f = f))
@@ -36,7 +36,7 @@ def cleanup ():
     """
     Cleanup all the logs
     """
-    with cd(env.admin.prefix):
+    with cd(env.installation.prefix):
         with settings(warn_only = True):
             sudo('[ -d logs ] && rm -rf logs/*')
 

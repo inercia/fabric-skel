@@ -27,7 +27,7 @@ def upload_XXXXX():
     """
     Upload the XXXXX.conf file (after doing replacements)
     """
-    dest = os.path.join(env.admin.prefix, 'conf')
+    dest = os.path.join(env.installation.prefix, 'conf')
 
     try:                context = env.machines[env.host_string]
     except IndexError:  context = {}
@@ -38,9 +38,9 @@ def upload_XXXXX():
         for f in env.templates.files:
             print(green('... uploading %s' % (f)))
 
-            sudo('chown -R {user}:{group} {d}'.format(user    = env.admin.user,
-                                                      group   = env.admin.group,
-                                                      d       = env.admin.prefix))
+            sudo('chown -R {user}:{group} {d}'.format(user    = env.installation.user,
+                                                      group   = env.installation.group,
+                                                      d       = env.installation.prefix))
 
             upload_template(f, dest,
                             context             = context,
