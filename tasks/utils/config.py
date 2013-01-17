@@ -1,7 +1,4 @@
 #
-# ClubWifi
-# Copyright Telefonica I+D, 2013
-#
 # Authors: Alvaro Saurin <saurin@tid.es> - 2013
 #
 #
