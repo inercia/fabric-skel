@@ -1,4 +1,7 @@
 #
+# ClubWifi
+# Copyright Telefonica I+D, 2013
+#
 # Authors: Alvaro Saurin <saurin@tid.es> - 2013
 #
 #
@@ -13,7 +16,6 @@ from fabric.api                 import run
 from fabric.api                 import put
 from fabric.context_managers    import cd
 from fabric.operations          import sudo
-
 from fabric.colors              import red, green, yellow
 
 
@@ -63,11 +65,6 @@ def load_cfg(env, root):
         print 'ERROR: (or specify the file name on the FABRIC_CFG environment variable)'
         sys.exit(1)
 
-    KEYS_DIR = os.path.abspath(root + '/config/certs')
-    if not os.path.exists(KEYS_DIR):
-        print 'ERROR: keys directory "%s" not found' % KEYS_DIR
-        sys.exit(1)
-
     ## load the configuration file
     cfg = ConfigParser(default_section = 'defaults', interpolation = ExtendedInterpolation())
     try:
@@ -99,13 +96,46 @@ def load_cfg(env, root):
     # ... and the environment sections
     for section in [x for x in cfg.sections() if x.lower().startswith('env|')]:
         env_name = str(section.replace('env|', '').strip())
-        if not env_name in env:
+        if env_name == 'global':
             d = {}
             for option in cfg.options(section):
                 d[str(option)] = str(cfg.get(section, option))
-            env[env_name] = _AttributeDict(d)
+            env.update(_AttributeDict(d))
+        elif env_name == 'auth':
+            d = {}
+            for option in cfg.options(section):
+                d[str(option)] = str(cfg.get(section, option))
 
+            ## do some specific treatment for some special keys...
+            try:
+                env.key_filename = [os.path.abspath(x) for x in d['certs'].splitlines()]
+            except KeyError:
+                print 'ERROR: no certificates directory specified in config file...'
+                sys.exit(1)
 
+            try:
+                env.user = d['username']
+            except KeyError:
+                print 'WARNING: no default username specified in config file...'
+
+            try:
+                env.password = d['password']
+            except KeyError:
+                print 'WARNING: no default passworrd specified in config file...'
+
+        else:
+            if not env_name in env:
+                d = {}
+                for option in cfg.options(section):
+                    d[str(option)] = str(cfg.get(section, option))
+                env[env_name] = _AttributeDict(d)
+
+    ## and some defaults...
+
+    ## do not use the local SSH config files...
+    env.no_agent = True
+    env.no_keys = True
+    env.disable_known_hosts = True
 
 def install_packages_in(env, directory, patterns):
     """
@@ -128,12 +158,12 @@ def install_packages_in(env, directory, patterns):
     
     print(yellow("cleaning up old packages"))    
 
-    with cd(env.admin.prefix):
+    with cd(env.installation.prefix):
         print(yellow("... cleaning up old packages"))
         if not _exists('tmp'): run('mkdir tmp')
         run('rm -rf tmp/*')
 
-    directory = os.path.join(env.admin.prefix, 'tmp')
+    directory = os.path.join(env.installation.prefix, 'tmp')
     with cd(directory):
         print(yellow("... uploading packages"))
         for f in matches:

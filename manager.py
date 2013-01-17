@@ -63,7 +63,7 @@ from fabric.api                 import env
 
 ## load the configuration file
 sys.path.append(FABUTILS_DIR)
-from tasks.utils import load_cfg, _exists
+from tasks.utils import load_cfg
 load_cfg(env, root = PROJECT_ROOT)
 
 from tasks import *
