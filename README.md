@@ -60,8 +60,12 @@ You can run a specific task by invoking the program with:
     $ ./manager.py <TASK>
 
 This will run the task `TASK` in all the machines defined in the config file. But
-you can run the task in group of machines with the `-R` argument, and there are two
-machines groups defined so far: production and testing.
+you can run the task in group of machines by appending a `role=` argument. For example:
+
+    $ ./manager.py dump.os_environ:role=production
+
+will dump the OS environment variables only in production machines.
+
 
 
 
