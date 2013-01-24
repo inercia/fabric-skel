@@ -3,6 +3,7 @@
 #
 # Authors: Alvaro Saurin <saurin@tid.es> - 2013
 #
+#
 
 from __future__ import with_statement
 from __future__ import division
@@ -29,8 +30,12 @@ and some tasks need some arguments. For example:
 
     $ {manager} config.upload:orig=img-utils/config/*
 
-You can apply the task only in one machine with -H <MACHINE_NAME>, or on a group of
-machines with -R <ROLE_NAME>. Checkout the machines/roles at the config file.
+You can apply the task only in one machine by adding "host=<MACHINE_NAME>", or on a group
+of machines with "role=<ROLE_NAME>". For example:
+
+    $ {manager} config.upload:orig=utils/config/*,role=testing
+
+Checkout the machines/roles at the config file.
 """.format(manager = __file__)
 
 #  This is our entry point.
@@ -63,8 +68,7 @@ from fabric.api                 import env
 
 ## load the configuration file
 sys.path.append(FABUTILS_DIR)
-from tasks.utils import load_cfg
+from tasks.utils.config import load_cfg
 load_cfg(env, root = PROJECT_ROOT)
 
 from tasks import *
-

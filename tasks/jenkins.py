@@ -3,6 +3,7 @@
 #
 # Authors: Alvaro Saurin <saurin@tid.es> - 2013
 #
+#
 
 
 
@@ -13,13 +14,15 @@ import tempfile
 import zipfile
 import shutil
 
-from fabric.api                 import env, task, roles, runs_once
-
+from fabric.api                 import env, roles, runs_once, serial
 from fabric.colors              import red, green, yellow
 
+from utils                      import manager_task
 
-@task
+
+@manager_task
 @runs_once
+@serial
 def download (topdir = None):
     """
     Get the latests package versions from Jenkins
@@ -31,9 +34,17 @@ def download (topdir = None):
 
     print(green("Gathering packages from %s to %s" % (str(env.jenkins.host), packages_dir)))
 
-    try: shutil.rmtree(packages_dir)
-    except: pass
-    os.mkdir(packages_dir)
+    try:
+        if os.path.exists(packages_dir):
+            shutil.rmtree(packages_dir)
+    except:
+        pass
+
+    try:
+        if not os.path.exists(packages_dir):
+            os.mkdir(packages_dir)
+    except OSError:
+        pass
 
     dirpath = tempfile.mkdtemp()
     zip_file = os.path.join(dirpath, 'zip_file')
@@ -42,7 +53,7 @@ def download (topdir = None):
         print(yellow("... downloading %s" % str(artifact)))
         urllib.urlretrieve (artifact, zip_file)
 
-        print(yellow("... extracting Zip file %s" % str(artifact)))
+        print(yellow("...... extracting Zip file"))
         with zipfile.ZipFile(zip_file, 'r') as artifact_zip:
             artifact_zip.extractall(dirpath)
 
@@ -53,7 +64,9 @@ def download (topdir = None):
             matches.append(full_filename)
             shutil.copy(full_filename, packages_dir)
 
-    print(yellow("... packages obtained: %s" % str(matches)))
+    print(yellow("... packages obtained:"))
+    for p in matches:
+        print(yellow("...... %s" % str(p)))
 
     shutil.rmtree(dirpath)
 

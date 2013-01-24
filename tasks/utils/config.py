@@ -1,23 +1,12 @@
 #
-# ClubWifi
-# Copyright Telefonica I+D, 2013
-#
 # Authors: Alvaro Saurin <saurin@tid.es> - 2013
 #
 #
 
 import os
 import sys
-import fnmatch
 
 from fabric.utils               import _AttributeDict
-from fabric.context_managers    import settings
-from fabric.api                 import run
-from fabric.api                 import put
-from fabric.context_managers    import cd
-from fabric.operations          import sudo
-from fabric.colors              import red, green, yellow
-
 
 
 #: default Fabric configuration file
@@ -33,19 +22,6 @@ except ImportError:
 
 
 ###################################################################################################
-
-
-# some aux functions...
-def _exists(path):
-    """
-    check if a file exists on a remote host
-
-    :param path:
-    :return: True if it exists, False otherwise
-    """
-    with settings(warn_only = True):
-        return bool(int(run('[ -e %s ] && echo 1 || echo 0' % path)))
-
 
 
 def load_cfg(env, root):
@@ -74,60 +50,88 @@ def load_cfg(env, root):
         print "ERROR: reading %s:" % filename, str(e).lower()
         sys.exit(1)
 
-    # load the roles and machines
+
+    def from_section(cfg, section):
+        d = {}
+        for option in cfg.options(section):
+            option = str(option)
+            value = str(cfg.get(section, option))
+
+            ## check if this is a boolean
+            if value.lower() in ['true', 'false']:
+                d[option] = True if value.lower() == 'true' else False
+            else:
+                try:                            ## try to detect if it is an integer
+                    d[option] = int(value)
+                except ValueError:
+                    d[option] = value
+
+        return d
+
+    # load the roles, machines and contexts (for templates substitutions)
     roledefs = {}
-    machinedefs = {}
+    machines = {}
+    contexts = {}
+
     for section in [x for x in cfg.sections() if x.lower().startswith('role|')]:
         role_name = str(section.lower().replace('role|', '').strip())
         if not role_name in env.roledefs:
             roledefs[role_name] = []
 
         for host in cfg.options(section):
+
+            host = str(host).lower()
+
+            ## append all the machines defined in the roles...
+            if not host in roledefs[role_name]:
+                roledefs[role_name].append(host)
+
+            ## check if there is a [host|MACHINE]
             machine_section = 'host|' + host
             if cfg.has_section(machine_section):
-                machinedefs[str(host)] = {}
-                roledefs[str(role_name)].append(str(host.lower()))
-                for option in cfg.options(machine_section):
-                    machinedefs[host][str(option.upper())] = str(cfg.get(machine_section, option))
+                if host in machines:
+                    machines[host].update(from_section(cfg, machine_section))
+                else:
+                    machines[host] = from_section(cfg, machine_section)
+
+            ## check if there is a [templates|MACHINE]
+            templates_section = 'templates|' + host
+            if cfg.has_section(templates_section):
+                if host in contexts:
+                    contexts[host].update(from_section(cfg, templates_section))
+                else:
+                    contexts[host] = from_section(cfg, templates_section)
 
     env.roledefs = roledefs
-    env.machines = machinedefs
+    env.machines = machines
+    env.contexts = contexts
 
-    # ... and the environment sections
+    ## treat the 'auth' section (if present)
+    if cfg.has_section('auth'):
+        try:
+            env.key_filename = [os.path.abspath(x) for x in  str(cfg.get('auth', 'certs')).splitlines()]
+        except KeyError:
+            print 'WARNING: no certificates directory specified in config file...'
+
+        try:
+            env.user = str(cfg.get('auth', 'user'))
+        except KeyError:
+            print 'WARNING: no default username specified in config file...'
+
+        try:
+            env.password = str(cfg.get('auth', 'password'))
+        except KeyError:
+            print 'WARNING: no default password specified in config file...'
+
+    # the environment sections
     for section in [x for x in cfg.sections() if x.lower().startswith('env|')]:
         env_name = str(section.replace('env|', '').strip())
+
         if env_name == 'global':
-            d = {}
-            for option in cfg.options(section):
-                d[str(option)] = str(cfg.get(section, option))
-            env.update(_AttributeDict(d))
-        elif env_name == 'auth':
-            d = {}
-            for option in cfg.options(section):
-                d[str(option)] = str(cfg.get(section, option))
-
-            ## do some specific treatment for some special keys...
-            try:
-                env.key_filename = [os.path.abspath(x) for x in d['certs'].splitlines()]
-            except KeyError:
-                print 'ERROR: no certificates directory specified in config file...'
-                sys.exit(1)
-
-            try:
-                env.user = d['username']
-            except KeyError:
-                print 'WARNING: no default username specified in config file...'
-
-            try:
-                env.password = d['password']
-            except KeyError:
-                print 'WARNING: no default passworrd specified in config file...'
-
+            env.update(_AttributeDict(from_section(cfg, section)))
         else:
             if not env_name in env:
-                d = {}
-                for option in cfg.options(section):
-                    d[str(option)] = str(cfg.get(section, option))
+                d = from_section(cfg, section)
                 env[env_name] = _AttributeDict(d)
 
     ## and some defaults...
@@ -136,42 +140,3 @@ def load_cfg(env, root):
     env.no_agent = True
     env.no_keys = True
     env.disable_known_hosts = True
-
-def install_packages_in(env, directory, patterns):
-    """
-    Install all the packages in the `directory` that match `pattern` in a remote machine.
-    """
-    matches = set()
-    for root, dirnames, filenames in os.walk(directory):
-        for pattern in patterns:
-            for filename in fnmatch.filter(filenames, pattern):
-                full_filename = os.path.join(root, filename)
-                matches.add(full_filename)
-                break
-
-    if len(matches) == 0:
-        print(red("no packages to install in %s" % directory))
-        return
-        
-    print(green("the following packages will be installed"))
-    print(green("... %s" % ', '.join(matches)))
-    
-    print(yellow("cleaning up old packages"))    
-
-    with cd(env.installation.prefix):
-        print(yellow("... cleaning up old packages"))
-        if not _exists('tmp'): run('mkdir tmp')
-        run('rm -rf tmp/*')
-
-    directory = os.path.join(env.installation.prefix, 'tmp')
-    with cd(directory):
-        print(yellow("... uploading packages"))
-        for f in matches:
-            put(f, '.')
-
-        print(yellow("... installing software"))
-        sudo('dpkg --install  *.deb')
-
-
-
-

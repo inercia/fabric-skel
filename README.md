@@ -32,28 +32,23 @@ with:
 
     $ ./manager.py
 
-Our predefined tasks are:
+Some of our predefined tasks are:
 
-	config.upload        Upload a list of files (separated by ':') [params: orig=?, dest=/etc/]
-	config.upload_XXXXX  Upload the XXXXX.conf file (after doing replacements)
-	control.restart      Restart the XXXXX systems
-	control.restart_i    Restart the XXXXX systems (interactive)
-	control.start        Start the XXXXX systems
-	control.start_i      Start the XXXXX systems (interactive)
-	control.stop         Stop the XXXXX systems
-	control.stop_i       Stop the XXXXX systems (interactive)
-	deploy.run           Deploy the packages in the production machines
-	deploy.run_i         Deploy the packages in the production machines (interactive)
-	dump.environ         Dumps the current Fabric environment
-	dump.machines        Dumps the current machines list with their variables
-	dump.machines_roles  Dumps the current roles list
-	dump.os_environ      Dump the OS environment variables on all machines
-	jenkins.download     Get the latests package versions from Jenkins
-	logs.cleanup         Cleanup all the logs
-	logs.tail            Prints the tail of PREFIX/logs/XXXXX.log
-	qa.deploy            Deploy the packages in the QA machines
-	qa.run               Deploy the packages in the QA machines, and launch the testing tool
-	qa.run_tests         Run the tester in the QA machines
+    control.restart            Restart the service
+    control.restart_i          Restart the service (interactive)
+    control.start              Start the service
+    control.start_i            Start the service (interactive)
+    control.stop               Stop the service
+    control.stop_i             Stop the service (interactive)
+    control.machine.halt       Shutdown the machine [param: delay=now (seconds)]
+    control.machine.halt_i     Shutdown the machine [param: delay=now (seconds)] (interactive)
+    control.machine.restart    Restart the machine [param: delay=now (seconds)]
+    control.machine.restart_i  Restart the machine [param: delay=now (seconds)]  (interactive)
+    control.proc.kill          Kill a process id [params: pid=?, signum=6]
+    control.proc.killall       Kill all processes with some name [params: name=?, signum=6]
+    deploy                     Deploy the packages in the QA machines
+    deploy.deploy              Deploy the packages in the QA machines
+    ...
 
 You can run a specific task by invoking the program with:
 
